@@ -7,57 +7,19 @@ if (!isset($_SESSION["user_id"])) {
     exit();
 }
 
-// Delete Todo
-if ($_SERVER["REQUEST_METHOD"] === "GET" && isset($_GET["delete_id"])) {
-    $deleteId = $_GET["delete_id"];
-    $userId = $_SESSION["user_id"];
-
-    $stmt = $conn->prepare("DELETE FROM todos WHERE id = ? AND user_id = ?");
-    $stmt->bind_param("ii", $deleteId, $userId);
-    $stmt->execute();
-    $stmt->close();
-
-    header("Location: todo.php");
-    exit();
-}
-
-// Update Todo
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["update_id"]) && isset($_POST["todo_name"])) {
-    $updateId = $_POST["update_id"];
-    $todoName = $_POST["todo_name"];
-    $userId = $_SESSION["user_id"];
-
-    $stmt = $conn->prepare("UPDATE todos SET todo_name = ? WHERE id = ? AND user_id = ?");
-    $stmt->bind_param("sii", $todoName, $updateId, $userId);
-    $stmt->execute();
-    $stmt->close();
-
-    header("Location: todo.php");
-    exit();
-}
-
-// Add Todo
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["todo_name"])) {
-    $todoName = $_POST["todo_name"];
-    $userId = $_SESSION["user_id"];
-
-    $stmt = $conn->prepare("INSERT INTO todos (user_id, todo_name) VALUES (?, ?)");
-    $stmt->bind_param("is", $userId, $todoName);
-    $stmt->execute();
-    $stmt->close();
-
-    header("Location: todo.php");
-    exit();
-}
-
-$userId = $_SESSION["user_id"];
-$stmt = $conn->prepare("SELECT id, todo_name FROM todos WHERE user_id = ?");
-$stmt->bind_param("i", $userId);
+// Read Libraries
+$stmt = $conn->prepare("SELECT id, name, location, noBooks, phone FROM library");
 $stmt->execute();
-$stmt->bind_result($todoId, $todoName);
-$todos = [];
+$stmt->bind_result($id, $name, $location, $noBooks, $phone);
+$libraries = [];
 while ($stmt->fetch()) {
-    $todos[] = ["id" => $todoId, "name" => $todoName];
+    $libraries[] = [
+        "id" => $id,
+        "name" => $name,
+        "location" => $location,
+        "noBooks" => $noBooks,
+        "phone" => $phone
+    ];
 }
 $stmt->close();
 
@@ -67,99 +29,155 @@ $conn->close();
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Todo List</title>
+    <title>Library CRUD</title>
     <!-- Include Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
-    <style>
-        body {
-            background-color: #f8f9fa;
-        }
-        .container {
-            max-width: 800px;
-            margin: 50px auto;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-        }
-        .container h2 {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .container .form-group label {
-            font-weight: bold;
-        }
-        .container .form-group input[type="text"] {
-            border-radius: 5px;
-        }
-        .container .form-group button[type="submit"] {
-            width: 100%;
-            margin-top: 20px;
-        }
-        .table {
-            margin-top: 30px;
-        }
-        .table th {
-            font-weight: bold;
-        }
-        .table td {
-            vertical-align: middle;
-        }
-        .table .form-control {
-            border-radius: 5px;
-        }
-        .table .btn {
-            margin-right: 5px;
-        }
-        .logout-btn {
-            margin-top: 30px;
-            display: flex;
-            justify-content: center;
-        }
-    </style>
 </head>
+<style>
+    @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Roboto:wght@400;700;900&display=swap");
+html,
+body {
+  height: 100%;
+}
+
+section {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  min-height: min(80vh, 600px);
+  background-color: #312e81;
+  margin: 2rem 0 2rem;
+  padding: 1rem;
+  border-radius: 20px;
+  text-align: center;
+  overflow: hidden;
+  font-family: "Roboto", sans-serif;
+}
+section:before {
+  position: absolute;
+  mix-blend-mode: overlay;
+  filter: brightness(70%);
+  content: "";
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: url("https://images.unsplash.com/photo-1582005450386-52b25f82d9bb?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=2940&q=80");
+  background-size: cover;
+  background-position: center;
+}
+
+h1,
+h2 {
+  margin-top: 2rem;
+  color: white;
+}
+
+h1 {
+  position: relative;
+  font-weight: 900;
+  font-size: clamp(2.5rem, 5vw, 4rem);
+}
+h1 div {
+  color: #ddd6fe;
+}
+
+h2 {
+  font-size: clamp(1.3rem, 2vw, 3rem);
+}
+
+p {
+  margin-top: 1rem;
+  font-size: clamp(1.3rem, 3vw, 4rem);
+  color: white;
+}
+
+.cta {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  margin-top: 3rem;
+  gap: 1.5rem;
+}
+.cta button {
+  border: none;
+  padding: 1rem 3rem;
+  font-size: clamp(1.1rem, 1.3vw, 3rem);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.cta button:first-of-type {
+  background-color: white;
+  color: #4c1d95;
+  transition: all 300ms ease-in;
+}
+.cta button:first-of-type:hover {
+  background-color: #4c1d95;
+  color: white;
+}
+.cta button:nth-of-type(2) {
+  background-color: #2563eb;
+  color: white;
+}
+.cta button:nth-of-type(2):hover {
+  background-color: white;
+  color: #2563eb;
+}
+
+@media (min-width: 600px) {
+  .cta {
+    flex-direction: row;
+  }
+}
+</style>
 <body>
+    <section>
+  <h1>Take control of your
+    <div>customer support</div>
+  </h1>
+  <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+  <div class="cta">
+    <button>Get started</button>
+    <button>Live demo</button>
+  </div>
+</section>
     <div class="container">
-        <h2>Welcome, <?php echo $_SESSION["user_name"]; ?>!</h2>
-        <form method="POST" action="todo.php">
-            <div class="form-group">
-                <label for="todo_name">Todo Name:</label>
-                <input type="text" class="form-control" name="todo_name" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Add Todo</button>
-        </form>
-        <table class="table mt-4">
+        <h2 class="mt-4 mb-4">Library CRUD</h2>
+
+        <!-- Create Library Form -->
+        <a href="create.php" class="btn btn-primary mb-4">Create Library</a>
+
+        <!-- Display Libraries -->
+        <table class="table">
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Todo Name</th>
+                    <th>Name</th>
+                    <th>Location</th>
+                    <th>No. of Books</th>
+                    <th>Phone</th>
                     <th>Action</th>
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($todos as $todo): ?>
+                <?php foreach ($libraries as $library): ?>
                     <tr>
-                        <td><?php echo $todo["id"]; ?></td>
-                        <td><?php echo $todo["name"]; ?></td>
+                        <td><?php echo $library["id"]; ?></td>
+                        <td><?php echo $library["name"]; ?></td>
+                        <td><?php echo $library["location"]; ?></td>
+                        <td><?php echo $library["noBooks"]; ?></td>
+                        <td><?php echo $library["phone"]; ?></td>
                         <td>
-                            <form method="POST" action="todo.php" class="d-flex">
-                                <input type="hidden" name="update_id" value="<?php echo $todo["id"]; ?>">
-                                <div class="input-group">
-                                    <input type="text" class="form-control" name="todo_name" value="<?php echo $todo["name"]; ?>" required>
-                                    <div class="input-group-append">
-                                        <button type="submit" class="btn btn-primary">Update</button>
-                                    </div>
-                                </div>
-                            </form>
-                            <a href="todo.php?delete_id=<?php echo $todo["id"]; ?>" class="btn btn-danger">Delete</a>
+                            <a href="update.php?id=<?php echo $library["id"]; ?>" class="btn btn-primary">Edit</a>
+                            <a href="delete.php?id=<?php echo $library["id"]; ?>" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this library?')">Delete</a>
                         </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
         </table>
-        <div class="logout-btn">
-            <a href="logout.php" class="btn btn-secondary">Logout</a>
-        </div>
     </div>
 
     <!-- Include Bootstrap JS -->
