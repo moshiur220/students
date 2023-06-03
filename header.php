@@ -15,7 +15,7 @@
             <ul class="navbar-nav ml-auto">
                 <?php if (isset($_SESSION["user_id"])): ?>
                     <li class="nav-item">
-                        <a class="nav-link" href="todo.php">Todo List</a>
+                        <a class="nav-link" href="todo.php">Movie List</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="logout.php">Logout</a>

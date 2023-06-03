@@ -7,13 +7,20 @@ if (!isset($_SESSION["user_id"])) {
     exit();
 }
 
-// Delete Todo
-if ($_SERVER["REQUEST_METHOD"] === "GET" && isset($_GET["delete_id"])) {
-    $deleteId = $_GET["delete_id"];
-    $userId = $_SESSION["user_id"];
+// Create Movie
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["movieName"]) && isset($_POST["movieLength"]) && isset($_POST["authorName"]) && isset($_FILES["movieImage"])) {
+    $movieName = $_POST["movieName"];
+    $movieLength = $_POST["movieLength"];
+    $authorName = $_POST["authorName"];
 
-    $stmt = $conn->prepare("DELETE FROM todos WHERE id = ? AND user_id = ?");
-    $stmt->bind_param("ii", $deleteId, $userId);
+    // File Upload
+    $targetDir = "uploads/";
+    $fileName = basename($_FILES["movieImage"]["name"]);
+    $targetFilePath = $targetDir . $fileName;
+    move_uploaded_file($_FILES["movieImage"]["tmp_name"], $targetFilePath);
+
+    $stmt = $conn->prepare("INSERT INTO movies (movieName, movieLength, authorName, movieImage) VALUES (?, ?, ?, ?)");
+    $stmt->bind_param("siss", $movieName, $movieLength, $authorName, $targetFilePath);
     $stmt->execute();
     $stmt->close();
 
@@ -21,43 +28,19 @@ if ($_SERVER["REQUEST_METHOD"] === "GET" && isset($_GET["delete_id"])) {
     exit();
 }
 
-// Update Todo
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["update_id"]) && isset($_POST["todo_name"])) {
-    $updateId = $_POST["update_id"];
-    $todoName = $_POST["todo_name"];
-    $userId = $_SESSION["user_id"];
-
-    $stmt = $conn->prepare("UPDATE todos SET todo_name = ? WHERE id = ? AND user_id = ?");
-    $stmt->bind_param("sii", $todoName, $updateId, $userId);
-    $stmt->execute();
-    $stmt->close();
-
-    header("Location: todo.php");
-    exit();
-}
-
-// Add Todo
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["todo_name"])) {
-    $todoName = $_POST["todo_name"];
-    $userId = $_SESSION["user_id"];
-
-    $stmt = $conn->prepare("INSERT INTO todos (user_id, todo_name) VALUES (?, ?)");
-    $stmt->bind_param("is", $userId, $todoName);
-    $stmt->execute();
-    $stmt->close();
-
-    header("Location: todo.php");
-    exit();
-}
-
-$userId = $_SESSION["user_id"];
-$stmt = $conn->prepare("SELECT id, todo_name FROM todos WHERE user_id = ?");
-$stmt->bind_param("i", $userId);
+// Read Movies
+$stmt = $conn->prepare("SELECT id, movieName, movieLength, authorName, movieImage FROM movies");
 $stmt->execute();
-$stmt->bind_result($todoId, $todoName);
-$todos = [];
+$stmt->bind_result($id, $movieName, $movieLength, $authorName, $movieImage);
+$movies = [];
 while ($stmt->fetch()) {
-    $todos[] = ["id" => $todoId, "name" => $todoName];
+    $movies[] = [
+        "id" => $id,
+        "movieName" => $movieName,
+        "movieLength" => $movieLength,
+        "authorName" => $authorName,
+        "movieImage" => $movieImage
+    ];
 }
 $stmt->close();
 
@@ -67,98 +50,147 @@ $conn->close();
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Todo List</title>
+    <title>Movie Landing Page</title>
     <!-- Include Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
     <style>
         body {
-            background-color: #f8f9fa;
+            background-image: url('background-image.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            min-height: 100vh;
         }
         .container {
-            max-width: 800px;
-            margin: 50px auto;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            margin-top: 100px;
         }
-        .container h2 {
-            text-align: center;
-            margin-bottom: 20px;
+        .movie-card {
+            height: 350px;
         }
-        .container .form-group label {
-            font-weight: bold;
-        }
-        .container .form-group input[type="text"] {
-            border-radius: 5px;
-        }
-        .container .form-group button[type="submit"] {
-            width: 100%;
-            margin-top: 20px;
-        }
-        .table {
-            margin-top: 30px;
-        }
-        .table th {
-            font-weight: bold;
-        }
-        .table td {
-            vertical-align: middle;
-        }
-        .table .form-control {
-            border-radius: 5px;
-        }
-        .table .btn {
-            margin-right: 5px;
-        }
-        .logout-btn {
-            margin-top: 30px;
-            display: flex;
-            justify-content: center;
+        .movie-image {
+            height: 200px;
+            object-fit: cover;
         }
     </style>
 </head>
 <body>
+     <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">My Movie</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+
+                <li class="nav-item">
+                    <a class="nav-link" href="logout.php">Logout</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
     <div class="container">
-        <h2>Welcome, <?php echo $_SESSION["user_name"]; ?>!</h2>
-        <form method="POST" action="todo.php">
+        <h2 class="mt-4 mb-4">Movies List</h2>
+
+        <!-- Create Movie Form -->
+        <form method="POST" action="todo.php" enctype="multipart/form-data">
             <div class="form-group">
-                <label for="todo_name">Todo Name:</label>
-                <input type="text" class="form-control" name="todo_name" required>
+                <label for="movieName">Movie Name:</label>
+                <input type="text" class="form-control" name="movieName" required>
             </div>
-            <button type="submit" class="btn btn-primary">Add Todo</button>
+            <div class="form-group">
+                <label for="movieLength">Movie Length:</label>
+                <input type="number" class="form-control" name="movieLength" required>
+            </div>
+            <div class="form-group">
+                <label for="authorName">Author Name:</label>
+                <input type="text" class="form-control" name="authorName" required>
+            </div>
+            <div class="form-group">
+                <label for="movieImage">Movie Image:</label>
+                <input type="file" class="form-control-file" name="movieImage" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Create Movie</button>
         </form>
-        <table class="table mt-4">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Todo Name</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($todos as $todo): ?>
-                    <tr>
-                        <td><?php echo $todo["id"]; ?></td>
-                        <td><?php echo $todo["name"]; ?></td>
-                        <td>
-                            <form method="POST" action="todo.php" class="d-flex">
-                                <input type="hidden" name="update_id" value="<?php echo $todo["id"]; ?>">
-                                <div class="input-group">
-                                    <input type="text" class="form-control" name="todo_name" value="<?php echo $todo["name"]; ?>" required>
-                                    <div class="input-group-append">
-                                        <button type="submit" class="btn btn-primary">Update</button>
-                                    </div>
-                                </div>
-                            </form>
-                            <a href="todo.php?delete_id=<?php echo $todo["id"]; ?>" class="btn btn-danger">Delete</a>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-        <div class="logout-btn">
-            <a href="logout.php" class="btn btn-secondary">Logout</a>
+
+        <!-- Display Movies -->
+        <div class="row mt-4">
+            <?php foreach ($movies as $movie): ?>
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        <img src="<?php echo $movie["movieImage"]; ?>" class="card-img-top" alt="Movie Image">
+                        <div class="card-body">
+                            <h5 class="card-title"><?php echo $movie["movieName"]; ?></h5>
+                            <p class="card-text">Length: <?php echo $movie["movieLength"]; ?> mins</p>
+                            <p class="card-text">Author: <?php echo $movie["authorName"]; ?></p>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+              <div class="container">
+        <h2 class="mt-4 mb-4 text-light">Welcome to MovieLand!</h2>
+
+        <!-- Movie List -->
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="card movie-card">
+                    <img src="asset/image/heart-attack_139114911340.jpg" class="card-img-top movie-image" alt="Movie 1">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">Movie Title 1</h5>
+                        <p class="card-text text-muted">Movie Description</p>
+                        <a href="#" class="btn btn-primary">Watch Trailer</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4 mb-4">
+                <div class="card movie-card">
+                    <img src="asset/image/images.jpeg" class="card-img-top movie-image" alt="Movie 2">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">Movie Title 2</h5>
+                        <p class="card-text text-muted">Movie Description</p>
+                        <a href="#" class="btn btn-primary">Watch Trailer</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4 mb-4">
+                <div class="card movie-card">
+                    <img src="asset/image/Pathaan-5.jpg" class="card-img-top movie-image" alt="Movie 3">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">Movie Title 3</h5>
+                        <p class="card-text text-muted">Movie Description</p>
+                        <a href="#" class="btn btn-primary">Watch Trailer</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Movie Booking Section -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <h3 class="text-light mb-3">Book Your Tickets</h3>
+                <form>
+                    <div class="form-group">
+                        <label for="name">Name:</label>
+                        <input type="text" class="form-control" id="name" placeholder="Enter your name">
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" class="form-control" id="email" placeholder="Enter your email">
+                    </div>
+                    <div class="form-group">
+                        <label for="movie">Select Movie:</label>
+                        <select class="form-control" id="movie">
+                            <option>Movie 1</option>
+                            <option>Movie 2</option>
+                            <option>Movie 3</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Book Now</button>
+                </form>
+            </div>
         </div>
     </div>
 
