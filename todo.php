@@ -7,161 +7,139 @@ if (!isset($_SESSION["user_id"])) {
     exit();
 }
 
-// Delete Todo
-if ($_SERVER["REQUEST_METHOD"] === "GET" && isset($_GET["delete_id"])) {
-    $deleteId = $_GET["delete_id"];
-    $userId = $_SESSION["user_id"];
-
-    $stmt = $conn->prepare("DELETE FROM todos WHERE id = ? AND user_id = ?");
-    $stmt->bind_param("ii", $deleteId, $userId);
-    $stmt->execute();
-    $stmt->close();
-
-    header("Location: todo.php");
-    exit();
-}
-
-// Update Todo
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["update_id"]) && isset($_POST["todo_name"])) {
-    $updateId = $_POST["update_id"];
-    $todoName = $_POST["todo_name"];
-    $userId = $_SESSION["user_id"];
-
-    $stmt = $conn->prepare("UPDATE todos SET todo_name = ? WHERE id = ? AND user_id = ?");
-    $stmt->bind_param("sii", $todoName, $updateId, $userId);
-    $stmt->execute();
-    $stmt->close();
-
-    header("Location: todo.php");
-    exit();
-}
-
-// Add Todo
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["todo_name"])) {
-    $todoName = $_POST["todo_name"];
-    $userId = $_SESSION["user_id"];
-
-    $stmt = $conn->prepare("INSERT INTO todos (user_id, todo_name) VALUES (?, ?)");
-    $stmt->bind_param("is", $userId, $todoName);
-    $stmt->execute();
-    $stmt->close();
-
-    header("Location: todo.php");
-    exit();
-}
-
-$userId = $_SESSION["user_id"];
-$stmt = $conn->prepare("SELECT id, todo_name FROM todos WHERE user_id = ?");
-$stmt->bind_param("i", $userId);
+// Read Students
+$stmt = $conn->prepare("SELECT id, name, roll, father_name, department FROM students");
 $stmt->execute();
-$stmt->bind_result($todoId, $todoName);
-$todos = [];
+$stmt->bind_result($id, $name, $roll, $fatherName, $department);
+$students = [];
 while ($stmt->fetch()) {
-    $todos[] = ["id" => $todoId, "name" => $todoName];
+    $students[] = [
+        "id" => $id,
+        "name" => $name,
+        "roll" => $roll,
+        "fatherName" => $fatherName,
+        "department" => $department
+    ];
 }
 $stmt->close();
 
 $conn->close();
 ?>
-
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Todo List</title>
+    <title>Student Records</title>
     <!-- Include Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
-    <style>
-        body {
-            background-color: #f8f9fa;
-        }
-        .container {
-            max-width: 800px;
-            margin: 50px auto;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-        }
-        .container h2 {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .container .form-group label {
-            font-weight: bold;
-        }
-        .container .form-group input[type="text"] {
-            border-radius: 5px;
-        }
-        .container .form-group button[type="submit"] {
-            width: 100%;
-            margin-top: 20px;
-        }
-        .table {
-            margin-top: 30px;
-        }
-        .table th {
-            font-weight: bold;
-        }
-        .table td {
-            vertical-align: middle;
-        }
-        .table .form-control {
-            border-radius: 5px;
-        }
-        .table .btn {
-            margin-right: 5px;
-        }
-        .logout-btn {
-            margin-top: 30px;
-            display: flex;
-            justify-content: center;
-        }
-    </style>
 </head>
+<style>
+    @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap");
+html,
+body {
+  height: 100vh;
+  display: grid;
+  place-items: center;
+  background-color: #F9FAFB;
+}
+
+section {
+  max-width: 80rem;
+  background: linear-gradient(to right, #4C1D95 30%, #8B5CF6);
+  color: white;
+  line-height: 1.5;
+  font-family: "Nunito", sans-serif;
+}
+
+@media (min-width: 600px) {
+  section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .about-us {
+    padding: 3vw 0 3vh 3vw;
+  }
+
+  .image-wrapper {
+    filter: hue-rotate(20deg);
+    clip-path: polygon(0% 100%, 50% 0%, 100% 0%, 100% 100%);
+  }
+}
+.about-us {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 2rem;
+}
+.about-us h2 {
+  font-weight: 600;
+  white-space: nowrap;
+  font-size: clamp(2rem, 5vw, 4rem);
+  margin-bottom: 0.5rem;
+}
+.about-us p {
+  font-size: clamp(1rem, 1.5vw, 3rem);
+}
+
+.image-wrapper {
+  height: 100%;
+  width: 100%;
+  clip-path: polygon(0%, 0%, 0% 0%);
+}
+.image-wrapper img {
+  display: block;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  object-position: right center;
+}
+</style>
 <body>
+    <section>
+  <div class="about-us">
+    <h2>We are hiring.</h2>
+    <p>Are you looking for a new challenge? You are passionate about innovation and enjoy working with people? Then you've come to the right place.</p>
+  </div>
+  <div class="image-wrapper">
+    <img src="https://images.unsplash.com/photo-1531482615713-2afd69097998?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=2940&q=80" />
+  </div>
+</section>
     <div class="container">
-        <h2>Welcome, <?php echo $_SESSION["user_name"]; ?>!</h2>
-        <form method="POST" action="todo.php">
-            <div class="form-group">
-                <label for="todo_name">Todo Name:</label>
-                <input type="text" class="form-control" name="todo_name" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Add Todo</button>
-        </form>
-        <table class="table mt-4">
+
+        <h2>Student Records</h2>
+         <div>
+             <a href="insert.php" class="btn btn-success">Add Student</a>
+         </div>
+          <br>
+        <table class="table">
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Todo Name</th>
-                    <th>Action</th>
+                    <th>Name</th>
+                    <th>Roll</th>
+                    <th>Father's Name</th>
+                    <th>Department</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($todos as $todo): ?>
+                <?php foreach ($students as $student): ?>
                     <tr>
-                        <td><?php echo $todo["id"]; ?></td>
-                        <td><?php echo $todo["name"]; ?></td>
+                        <td><?php echo $student["id"]; ?></td>
+                        <td><?php echo $student["name"]; ?></td>
+                        <td><?php echo $student["roll"]; ?></td>
+                        <td><?php echo $student["fatherName"]; ?></td>
+                        <td><?php echo $student["department"]; ?></td>
                         <td>
-                            <form method="POST" action="todo.php" class="d-flex">
-                                <input type="hidden" name="update_id" value="<?php echo $todo["id"]; ?>">
-                                <div class="input-group">
-                                    <input type="text" class="form-control" name="todo_name" value="<?php echo $todo["name"]; ?>" required>
-                                    <div class="input-group-append">
-                                        <button type="submit" class="btn btn-primary">Update</button>
-                                    </div>
-                                </div>
-                            </form>
-                            <a href="todo.php?delete_id=<?php echo $todo["id"]; ?>" class="btn btn-danger">Delete</a>
+                            <a href="update.php?id=<?php echo $student["id"]; ?>" class="btn btn-primary">Edit</a>
+                            <a href="delete.php?id=<?php echo $student["id"]; ?>" class="btn btn-danger">Delete</a>
                         </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
         </table>
-        <div class="logout-btn">
-            <a href="logout.php" class="btn btn-secondary">Logout</a>
-        </div>
+        <a href="insert.php" class="btn btn-success">Add Student</a>
     </div>
-
     <!-- Include Bootstrap JS -->
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
 </body>
